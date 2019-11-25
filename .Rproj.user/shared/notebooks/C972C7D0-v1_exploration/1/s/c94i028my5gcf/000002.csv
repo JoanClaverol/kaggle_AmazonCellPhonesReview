@@ -1,0 +1,29 @@
+"0","glimpse(reviews)
+"
+"1","Observations: 82,815
+"
+"1","Variables: 8
+"
+"1","$ asin         [3m[38;5;246m<chr>[39m[23m ""B0000SX2UC"", ""B0000SX2UC"", ""B0000SX2UC"", ""B0000SX2UC"", …
+"
+"1",""
+"1","$ name         [3m[38;5;246m<chr>[39m[23m ""Janet"", ""Luke Wyatt"", ""Brooke"", ""amy m. teague"", ""trist…
+"
+"1",""
+"1","$ rating       [3m[38;5;246m<dbl>[39m[23m 3, 1, 5, 3, 4, 4, 5, 4, 5, 3, 4, 1, 2, 4, 1, 4, 5, 1, 5,…
+"
+"1",""
+"1","$ date         [3m[38;5;246m<chr>[39m[23m ""October 11, 2005"", ""January 7, 2004"", ""December 30, 200…
+"
+"1",""
+"1","$ verified     [3m[38;5;246m<lgl>[39m[23m FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, …
+"
+"1",""
+"1","$ title        [3m[38;5;246m<chr>[39m[23m ""Def not best, but not worst"", ""Text Messaging Doesn't W…
+"
+"1",""
+"1","$ body         [3m[38;5;246m<chr>[39m[23m ""I had the Samsung A600 for awhile which is absolute doo…
+"
+"1",""
+"1","$ helpfulVotes [3m[38;5;246m<dbl>[39m[23m 1, 17, 5, 1, 1, NA, 2, 2, 7, 3, 1, 4, 5, 1, NA, NA, NA, …
+"

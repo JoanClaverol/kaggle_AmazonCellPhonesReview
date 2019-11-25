@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1574715215706.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "40100120",
+    "id" : "548452A8",
+    "lastKnownWriteTime" : 1574719593,
+    "last_content_update" : 1574719593466,
+    "path" : "~/Documents/UbiqumCodeAcademy/projects/kaggle_AmazonCellPhonesReview/report/eda/v1_exploration.Rmd",
+    "project_path" : "report/eda/v1_exploration.Rmd",
+    "properties" : {
+        "cursorPosition" : "98,9",
+        "last_setup_crc32" : "A662935172beb374",
+        "scrollLine" : "93",
+        "tempName" : "Untitled1",
+        "working_dir" : "project"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
