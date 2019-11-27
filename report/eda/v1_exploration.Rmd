@@ -1,27 +1,204 @@
 ---
-title: "v1_exploration"
-author: "Joan Claverol Romero"
+title: "Sentiment analysis based on revie title & product clustering"
 date: "25/11/2019"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, 
+                      fig.align = "center", cache = T)
+```
+
+```{r}
 # libraries
 if (require(pacman) == FALSE) {
   install.packages("pacman")
 }
-pacman::p_load(tidyverse, magrittr)
+pacman::p_load(
+  tidyverse, magrittr,
+  # html tables creation, 
+  knitr, kableExtra,
+  # visualization tools
+  gridExtra,
+  # text mining
+  tm, SnowballC,
+  # machine learning
+  caret, modelr, randomForest
+  )
 # define themes for the plots
 theme_set(theme_bw())
 ```
 
-I am currently working on my undergraduate thesis about sentiment analysis, and I am planning to use Amazon customer reviews on cell phones. There are other existing datasets on Amazon mobile/cell phones, but this dataset focuses on both unlocked and locked carriers, and scoped on ten brands: ASUS, Apple, Google, HUAWEI, Motorola, Nokia, OnePlus, Samsung, Sony, and Xiaomi.
+##### Inspiration
 
-## First exploration
+Find if we can predict the number of starts given by a user based on his review. 
+
+## 1st iteration
+
+```{r}
+reviews <- read_csv("../../data/raw/20190928-reviews.csv")
+glimpse(reviews)
+```
+
+we will select only the reviews, title, and rating:
+
+```{r}
+kable(reviews %>% 
+    select(rating, title, body) %>% 
+    head(2)) %>% 
+  kable_styling(full_width = F, position = "center")
+```
+
+How can I do a correct natural lenguage processing?
+
+First extract the reviews. We will take a sample of the first 100 titles and comments:
+
+```{r}
+# create an object with title reviews
+reviews_title <- reviews %>% 
+  select(title) 
+# create an object with body reviews
+reviews_body <- reviews %>% 
+  select(body) %>% 
+  head(1000)
+```
+
+Now we will clean the texts by defining the relevant words. We will start by analysing the *titles*. We need to create a *corpus* where we will clean it to create the bag of words:
+
+```{r}
+# function to clean a corpus
+clean_corpus <- function(string, sparse) {
+  # GOAL: transform a string to corpus, clean it, and return a tibble
+  
+  # check and load library tm (text mining)
+  require(tm)
+  
+  # create the corpus
+  corpus <- VCorpus(VectorSource(x = string))
+  
+  # put to lower all the variables
+  corpus <- tm_map(x = corpus, FUN = content_transformer(tolower))
+  
+  # now we are going to eliminate any number inside the text
+  corpus <- tm_map(x = corpus, FUN = removeNumbers)
+  
+  # we are going to elimiate puntuation signs
+  corpus <- tm_map(x = corpus, FUN = removePunctuation)
+  
+  # remove articles 
+  corpus <- tm_map(corpus, FUN = removeWords, stopwords(kind = "en"))
+  
+  # we will apply the steaming to find the root word
+  corpus <- tm_map(corpus, FUN = stemDocument)
+  
+  # eliminate extra spaces 
+  corpus <- tm_map(corpus, FUN = stripWhitespace)
+  
+  # using the corpus, we are going to build the "bag of words"
+  dtm <- DocumentTermMatrix(x = corpus)
+  
+  # now we will reduce the words that appear few times, in order ro reduce its 
+  # sparsity
+  dtm <- removeSparseTerms(x = dtm, sparse = sparse) # we keep the 999% of most frequent
+  # words
+  
+  # we will transform it as a dataframe
+  dataset <- as_tibble(as.matrix(dtm))
+  
+  # return the corpus
+  return(dataset)
+}
+
+# apply the function to review titles
+dataset <- clean_corpus(string = reviews_title$title, sparse = 0.999)
+```
+
+Now we are goinig to apply a classification algorithm to predict the rating the user has given. The best algorithms we can use are:
+
+* Decition trees
+* Naive Bayes
+* Sometimes SVM
+
+Let's add the rating inside our new dataframe. Our model will try to predict the seniment of the review:
+
+* Bad: 1 or 2 stars
+* Neutral: 3 stars
+* Good: 4 or 5 stars
+
+Let's addthe rating variable:
+
+```{r}
+# add the ratings 
+dataset %<>% 
+  mutate(rating = reviews$rating, 
+         rating = if_else(rating %in% c("1","2"), "Bad", 
+                          if_else(rating == "3", "Neutral","Good")), 
+         rating = factor(rating, levels = c("Bad","Neutral","Good"))) %>% 
+  select(-`don’t`, -`function`) # exclude variables
+```
+
+Now we can run the model, in that case a Random Forest. First let's create de data partition:
+
+```{r}
+# create a data partition
+set.seed(42)
+train_id <- createDataPartition(y = dataset$rating, 
+                                p = 0.75, 
+                                list = F)
+train <- dataset[train_id,]
+test <- dataset[-train_id,]
+```
+
+Now run the model:
+
+```{r}
+# run a random forest
+# set.seed()
+mod_rf <- randomForest(rating ~ .,
+                       data = train, 
+                       ntree = 10)
+```
+
+Let's check our model results:
+
+1. General metrics
+
+Train: 
+
+```{r}
+kable(postResample(pred = predict(mod_rf, train), obs = train$rating)) %>% 
+  kable_styling(full_width = F)
+```
+
+Test:
+
+```{r}
+kable(postResample(pred = predict(mod_rf, test), obs = test$rating)) %>% 
+  kable_styling(full_width = F)
+```
+
+2. Confusion matrix testing
+
+Results on the testing:
+
+```{r}
+caret::confusionMatrix(factor(test$rating), reference = predict(mod_rf, test), 
+                       dnn = c("Prediction","Reference"))
+```
+
+Which are our main predictors?
+
+```{r}
+randomForest::varImpPlot(mod_rf)
+```
+
+## Notes and exploration
 
 ```{r load the data}
-items <- read_csv("data/raw/20190928-items.csv", 
+items <- read_csv("../../data/raw/20190928-items.csv", 
                   col_types = cols(
                     prices = col_number()
                   ))
@@ -37,7 +214,7 @@ Notes from items data set:
 * **Main goal. Can I predict the prices by using the information like the rating Avg., the number of total reviews and maybe some other info**?
 
 ```{r}
-reviews <- read_csv("data/raw/20190928-reviews.csv")
+reviews <- read_csv("../../data/raw/20190928-reviews.csv")
 glimpse(reviews)
 ```
 
@@ -49,7 +226,7 @@ Notes:
 * dates can give us some information?? Find high moment of sells. Extra work to properly format the dates
 * verified? Maybe a good validator to check for bots
 * title analysis. Relevant after to know the number of starts]
-* description of the botes. Sentiment analysis? Structure? 
+* description of the botes. Sentiment analysis? Structure? can we predict the number of starts added based on the comments? Maybe we will have to use the information as helpful votes. 
 * Validation of the community by using helpful votes. 
 
 A quick idea would be to create a model to predict the price based on the items data: 
@@ -70,6 +247,8 @@ items %>%
     )
 ```
 
+## Clustering items
+
 Of the information we see, there are some clear outlies with a bigger price than > $500. Maybe we can create a cluster of premium phones. Even that, the distribution is positive skewed. 
 
 Maybe we can create three categories here: 
@@ -85,17 +264,94 @@ items %<>%
                                        if_else(prices > 450, "high_price",
                                                "unknown_price"))), 
          price_group = if_else(is.na(price_group), "unknown_price", price_group)
-    ) 
-items %>% 
+    ) %>% 
+  rownames_to_column(var = "id")
+p_manual_cl <- items %>% 
   filter(!is.na(price_group)) %>% 
   ggplot(aes(x = prices, fill = price_group)) +
-    geom_density(alpha = 0.3)
+    geom_density(alpha = 0.3) +
+    labs(title = "Clusters created only using price (manual)")
+p_manual_cl
 ```
 
-### Right formats of the dates
+Another way to create clusters will be by using k-means, and we can also introduce the information from number of ratings and total reviews. 
 
 ```{r}
-reviews %>% 
-  mutate()
+# select numerical variables and id, and drop allmissing values
+items_cl <- items %>% 
+  select(prices, rating, totalReviews, id) %>% #rating, totalReviews,
+  drop_na(prices)
+
+# find the right number of clusters
+set.seed(123)
+wcss <- vector() 
+n_clusters <- 10 # define the number of clusters we want to use
+for (i in 1:n_clusters) {
+  wcss[i] <- sum(kmeans(x = items_cl, centers = i)$withinss)
+}
+plot(x = 1:n_clusters, y = wcss, type = "b")
 ```
 
+Using the elbow technique, we can see that 4 clusters is a good a number of clusters for this data. 
+
+```{r}
+# us of k means to create 3 clusters of information 
+set.seed(123)
+n_cl <- 4 # define decided number of clusers
+clusters <- kmeans(x = items_cl %>% 
+                     select(-id), 
+                   centers = n_cl)
+
+# add the 3 clusters inside the items data
+items <- items_cl %>% 
+  mutate(clusters_km = clusters$cluster) %>% 
+  right_join(y = items %>% select(-prices, -rating, -totalReviews),
+             by = "id")
+rm(clusters) # remove created clusters
+
+# visualize if the clusters has the same distribution that the manual clusters 
+# we created 
+p_kmeans_cl <- items %>% 
+  filter(!is.na(price_group)) %>% 
+  ggplot(aes(x = prices, fill = factor(clusters_km))) +
+    geom_density(alpha = 0.3) + 
+    labs(title = paste0("Clusters created by k-means(centers = ", n_cl ,")"))
+grid.arrange(p_manual_cl, p_kmeans_cl)
+```
+
+We can also use a dendograms for hierarchical:
+
+```{r}
+dendogram <- hclust(dist(x = items_cl %>% select(-id), 
+                         method = "euclidean"), # we will use euclidean distance
+                    method = "ward.D")
+plot(dendogram, xlab = "Euclidean distance")
+```
+
+If we decide to cut by the longuer vercial lign, avoiding to cut any hortizontal lign, we can see the number of clusters will be 4, the same than kmeans. 
+Let's see if they represent the same groups. 
+
+```{r}
+# define where to cut the tree (dendogram)
+k <- 4
+# add the new groups inside the data
+items <- items_cl %>% 
+  mutate(clusters_hc = cutree(tree = dendogram, k = k)) %>% 
+  right_join(y = items %>% select(-prices, -rating, -totalReviews),  
+             by = "id")
+
+rm(dendogram) # remove created clusters
+
+# visualize if the clusters has the same distribution that the manual clusters 
+# we created 
+p_hc_cl <- items %>% 
+  filter(!is.na(price_group)) %>% 
+  ggplot(aes(x = prices, fill = factor(clusters_hc))) +
+    geom_density(alpha = 0.3) + 
+    labs(title = paste0("Clusters created by hclust(cuts = ", k ,")"))
+grid.arrange(p_manual_cl, p_kmeans_cl, p_hc_cl)
+```
+
+The hierachy approach is closer to the hypothesis we created by hand, where we defined 3 groups of prices. 
+
+### Right formats of the dates

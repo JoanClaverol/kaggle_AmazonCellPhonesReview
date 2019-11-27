@@ -1,6 +1,0 @@
-"0","# define themes for the plots
-theme(theme_bw())
-"
-"2","Error in (function (el, elname)  : 
-  Element line must be a element_line object.
-"
